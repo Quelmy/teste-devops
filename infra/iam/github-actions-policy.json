@@ -1,0 +1,83 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "ECRAuthentication",
+      "Effect": "Allow",
+      "Action": ["ecr:GetAuthorizationToken"],
+      "Resource": "*"
+    },
+    {
+      "Sid": "ECRPushPull",
+      "Effect": "Allow",
+      "Action": [
+        "ecr:BatchCheckLayerAvailability",
+        "ecr:GetDownloadUrlForLayer",
+        "ecr:BatchGetImage",
+        "ecr:PutImage",
+        "ecr:InitiateLayerUpload",
+        "ecr:UploadLayerPart",
+        "ecr:CompleteLayerUpload",
+        "ecr:DescribeImages"
+      ],
+      "Resource": "arn:aws:ecr:us-east-1:ACCOUNT_ID:repository/lacrei-api"
+    },
+    {
+      "Sid": "ECSDeployStaging",
+      "Effect": "Allow",
+      "Action": [
+        "ecs:UpdateService",
+        "ecs:DescribeServices",
+        "ecs:DescribeTaskDefinition",
+        "ecs:RegisterTaskDefinition",
+        "ecs:ListTaskDefinitions"
+      ],
+      "Resource": [
+        "arn:aws:ecs:us-east-1:ACCOUNT_ID:cluster/lacrei-staging",
+        "arn:aws:ecs:us-east-1:ACCOUNT_ID:service/lacrei-staging/lacrei-service-staging",
+        "arn:aws:ecs:us-east-1:ACCOUNT_ID:task-definition/lacrei-task-staging:*"
+      ]
+    },
+    {
+      "Sid": "ECSDeployProduction",
+      "Effect": "Allow",
+      "Action": [
+        "ecs:UpdateService",
+        "ecs:DescribeServices",
+        "ecs:DescribeTaskDefinition",
+        "ecs:RegisterTaskDefinition",
+        "ecs:ListTaskDefinitions"
+      ],
+      "Resource": [
+        "arn:aws:ecs:us-east-1:ACCOUNT_ID:cluster/lacrei-prod",
+        "arn:aws:ecs:us-east-1:ACCOUNT_ID:service/lacrei-prod/lacrei-service-prod",
+        "arn:aws:ecs:us-east-1:ACCOUNT_ID:task-definition/lacrei-task-prod:*"
+      ]
+    },
+    {
+      "Sid": "PassRoleForECS",
+      "Effect": "Allow",
+      "Action": ["iam:PassRole"],
+      "Resource": "arn:aws:iam::ACCOUNT_ID:role/ecsTaskExecutionRole",
+      "Condition": {
+        "StringEquals": {
+          "iam:PassedToService": "ecs-tasks.amazonaws.com"
+        }
+      }
+    },
+    {
+      "Sid": "CloudWatchLogs",
+      "Effect": "Allow",
+      "Action": [
+        "logs:CreateLogStream",
+        "logs:PutLogEvents",
+        "logs:DescribeLogGroups",
+        "logs:DescribeLogStreams"
+      ],
+      "Resource": [
+        "arn:aws:logs:us-east-1:ACCOUNT_ID:log-group:/ecs/lacrei-staging:*",
+        "arn:aws:logs:us-east-1:ACCOUNT_ID:log-group:/ecs/lacrei-prod:*"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,14 @@
+node_modules/
+.git/
+.github/
+*.md
+*.log
+npm-debug.log*
+coverage/
+.nyc_output/
+.env*
+!.env.example
+dist/
+tmp/
+docs/
+infra/

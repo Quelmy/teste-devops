@@ -1,0 +1,110 @@
+name: Rollback – Restore Previous ECS Task Definition
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Ambiente para rollback'
+        required: true
+        type: choice
+        options: [staging, production]
+      image_tag:
+        description: 'Tag da imagem ECR para restaurar (ex: v1.2.3 ou sha-abc1234)'
+        required: true
+        type: string
+      confirm:
+        description: 'Digite CONFIRMAR para executar o rollback'
+        required: true
+        type: string
+
+env:
+  AWS_REGION: us-east-1
+  ECR_REGISTRY: ${{ secrets.ECR_REGISTRY }}
+  IMAGE_NAME: lacrei-api
+
+jobs:
+  rollback:
+    name: 🔄 Rollback → ${{ inputs.environment }}
+    runs-on: ubuntu-latest
+    if: inputs.confirm == 'CONFIRMAR'
+    environment:
+      name: ${{ inputs.environment }}
+
+    steps:
+      - name: Validate confirmation
+        run: |
+          if [ "${{ inputs.confirm }}" != "CONFIRMAR" ]; then
+            echo "❌ Confirmação inválida. Rollback cancelado."
+            exit 1
+          fi
+          echo "✅ Rollback confirmado para ${{ inputs.environment }} com tag ${{ inputs.image_tag }}"
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Set environment variables
+        id: env-vars
+        run: |
+          if [ "${{ inputs.environment }}" == "production" ]; then
+            echo "TASK_DEF=lacrei-task-prod" >> $GITHUB_OUTPUT
+            echo "SERVICE=lacrei-service-prod" >> $GITHUB_OUTPUT
+            echo "CLUSTER=lacrei-prod" >> $GITHUB_OUTPUT
+          else
+            echo "TASK_DEF=lacrei-task-staging" >> $GITHUB_OUTPUT
+            echo "SERVICE=lacrei-service-staging" >> $GITHUB_OUTPUT
+            echo "CLUSTER=lacrei-staging" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Download current task definition
+        run: |
+          aws ecs describe-task-definition \
+            --task-definition ${{ steps.env-vars.outputs.TASK_DEF }} \
+            --query taskDefinition \
+            > task-def.json
+
+      - name: Update task definition with rollback image
+        id: task-def
+        uses: aws-actions/amazon-ecs-render-task-definition@v1
+        with:
+          task-definition: task-def.json
+          container-name: lacrei-api
+          image: ${{ env.ECR_REGISTRY }}/${{ env.IMAGE_NAME }}:${{ inputs.image_tag }}
+          environment-variables: |
+            APP_VERSION=${{ inputs.image_tag }}
+
+      - name: Deploy rollback task definition
+        uses: aws-actions/amazon-ecs-deploy-task-definition@v1
+        with:
+          task-definition: ${{ steps.task-def.outputs.task-definition }}
+          service: ${{ steps.env-vars.outputs.SERVICE }}
+          cluster: ${{ steps.env-vars.outputs.CLUSTER }}
+          wait-for-service-stability: true
+          wait-for-minutes: 10
+
+      - name: Verify rollback success
+        run: |
+          URL="${{ inputs.environment == 'production' && secrets.PRODUCTION_URL || secrets.STAGING_URL }}"
+          sleep 20
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$URL/health")
+          if [ "$STATUS" == "200" ]; then
+            echo "✅ Rollback bem-sucedido! /health retornou HTTP 200"
+          else
+            echo "❌ /health retornou HTTP $STATUS após rollback"
+            exit 1
+          fi
+
+      - name: Notify Slack about rollback
+        if: ${{ secrets.SLACK_WEBHOOK_URL != '' }}
+        uses: slackapi/slack-github-action@v1.26.0
+        with:
+          payload: |
+            {
+              "text": "🔄 *ROLLBACK executado* em *${{ inputs.environment }}* para imagem `${{ inputs.image_tag }}` por @${{ github.actor }}"
+            }
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          SLACK_WEBHOOK_TYPE: INCOMING_WEBHOOK
