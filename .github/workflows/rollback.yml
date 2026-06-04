@@ -25,7 +25,7 @@ env:
 
 jobs:
   rollback:
-    name: 🔄 Rollback → ${{ inputs.environment }}
+    name: Rollback → ${{ inputs.environment }}
     runs-on: ubuntu-latest
     if: inputs.confirm == 'CONFIRMAR'
     environment:
@@ -35,10 +35,10 @@ jobs:
       - name: Validate confirmation
         run: |
           if [ "${{ inputs.confirm }}" != "CONFIRMAR" ]; then
-            echo "❌ Confirmação inválida. Rollback cancelado."
+            echo "Confirmação inválida. Rollback cancelado."
             exit 1
           fi
-          echo "✅ Rollback confirmado para ${{ inputs.environment }} com tag ${{ inputs.image_tag }}"
+          echo "Rollback confirmado para ${{ inputs.environment }} com tag ${{ inputs.image_tag }}"
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
@@ -99,9 +99,9 @@ jobs:
           sleep 20
           STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$URL/health")
           if [ "$STATUS" == "200" ]; then
-            echo "✅ Rollback bem-sucedido! /health retornou HTTP 200"
+            echo "Rollback bem-sucedido! /health retornou HTTP 200"
           else
-            echo "❌ /health retornou HTTP $STATUS após rollback"
+            echo " /health retornou HTTP $STATUS após rollback"
             exit 1
           fi
 
@@ -111,7 +111,7 @@ jobs:
         with:
           payload: |
             {
-              "text": "🔄 *ROLLBACK executado* em *${{ inputs.environment }}* para imagem `${{ inputs.image_tag }}` por @${{ github.actor }}"
+              "text": "*ROLLBACK executado* em *${{ inputs.environment }}* para imagem `${{ inputs.image_tag }}` por @${{ github.actor }}"
             }
         env:
           SLACK_WEBHOOK_TYPE: INCOMING_WEBHOOK
