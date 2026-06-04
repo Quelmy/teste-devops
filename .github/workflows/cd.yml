@@ -15,7 +15,7 @@ jobs:
   # Job 1 – Build & push para ECR
   # ─────────────────────────────────────────────────────────────
   build-and-push:
-    name: 🏗️ Build & Push to ECR
+    name: Build & Push to ECR
     runs-on: ubuntu-latest
     outputs:
       image-tag: ${{ steps.meta.outputs.version }}
@@ -117,7 +117,7 @@ jobs:
   # Job 3 – Smoke test no Staging
   # ─────────────────────────────────────────────────────────────
   smoke-test:
-    name: 💨 Smoke Test – Staging
+    name: Smoke Test – Staging
     runs-on: ubuntu-latest
     needs: deploy-staging
 
@@ -131,10 +131,10 @@ jobs:
         run: |
           STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$STAGING_URL/health")
           if [ "$STATUS" != "200" ]; then
-            echo "❌ /health returned HTTP $STATUS"
+            echo "/health returned HTTP $STATUS"
             exit 1
           fi
-          echo "✅ /health → HTTP 200"
+          echo "/health → HTTP 200"
 
   # ─────────────────────────────────────────────────────────────
   # Job 4 – Deploy para Produção (somente em tags v*.*.*)
@@ -183,7 +183,7 @@ jobs:
   # Job 5 – Notificação de resultado (Bônus: Slack)
   # ─────────────────────────────────────────────────────────────
   notify:
-    name: 📢 Notify Slack
+    name: Notify Slack
     runs-on: ubuntu-latest
     needs: [build-and-push, deploy-staging, smoke-test]
     if: always()
@@ -196,11 +196,11 @@ jobs:
         run: |
           if [[ "${{ needs.smoke-test.result }}" == "success" ]]; then
             echo "color=good" >> $GITHUB_OUTPUT
-            echo "emoji=✅" >> $GITHUB_OUTPUT
+            echo "emoji=" >> $GITHUB_OUTPUT
             echo "msg=Deploy concluído com sucesso" >> $GITHUB_OUTPUT
           else
             echo "color=danger" >> $GITHUB_OUTPUT
-            echo "emoji=❌" >> $GITHUB_OUTPUT
+            echo "emoji=" >> $GITHUB_OUTPUT
             echo "msg=Falha no pipeline de deploy" >> $GITHUB_OUTPUT
           fi
 
