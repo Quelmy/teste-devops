@@ -21,6 +21,7 @@ env:
   AWS_REGION: us-east-1
   ECR_REGISTRY: ${{ secrets.ECR_REGISTRY }}
   IMAGE_NAME: lacrei-api
+  SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
 
 jobs:
   rollback:
@@ -86,8 +87,15 @@ jobs:
           wait-for-minutes: 10
 
       - name: Verify rollback success
+        env:
+          PRODUCTION_URL: ${{ secrets.PRODUCTION_URL }}
+          STAGING_URL: ${{ secrets.STAGING_URL }}
         run: |
-          URL="${{ inputs.environment == 'production' && secrets.PRODUCTION_URL || secrets.STAGING_URL }}"
+          if [ "${{ inputs.environment }}" == "production" ]; then
+            URL="$PRODUCTION_URL"
+          else
+            URL="$STAGING_URL"
+          fi
           sleep 20
           STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$URL/health")
           if [ "$STATUS" == "200" ]; then
@@ -98,7 +106,7 @@ jobs:
           fi
 
       - name: Notify Slack about rollback
-        if: ${{ secrets.SLACK_WEBHOOK_URL != '' }}
+        if: env.SLACK_WEBHOOK_URL != ''
         uses: slackapi/slack-github-action@v1.26.0
         with:
           payload: |
@@ -106,5 +114,4 @@ jobs:
               "text": "🔄 *ROLLBACK executado* em *${{ inputs.environment }}* para imagem `${{ inputs.image_tag }}` por @${{ github.actor }}"
             }
         env:
-          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
           SLACK_WEBHOOK_TYPE: INCOMING_WEBHOOK

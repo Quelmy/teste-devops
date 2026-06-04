@@ -81,7 +81,6 @@ jobs:
     needs: build-and-push
     environment:
       name: staging
-      url: ${{ secrets.STAGING_URL }}
 
     steps:
       - name: Checkout code
@@ -127,8 +126,10 @@ jobs:
         run: sleep 30
 
       - name: Health check /health
+        env:
+          STAGING_URL: ${{ secrets.STAGING_URL }}
         run: |
-          STATUS=$(curl -s -o /dev/null -w "%{http_code}" "${{ secrets.STAGING_URL }}/health")
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$STAGING_URL/health")
           if [ "$STATUS" != "200" ]; then
             echo "❌ /health returned HTTP $STATUS"
             exit 1
@@ -146,7 +147,6 @@ jobs:
     if: startsWith(github.ref, 'refs/tags/v')
     environment:
       name: production
-      url: ${{ secrets.PRODUCTION_URL }}
 
     steps:
       - name: Checkout code
@@ -187,6 +187,8 @@ jobs:
     runs-on: ubuntu-latest
     needs: [build-and-push, deploy-staging, smoke-test]
     if: always()
+    env:
+      SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
 
     steps:
       - name: Determine overall status
@@ -203,7 +205,7 @@ jobs:
           fi
 
       - name: Send Slack notification
-        if: ${{ secrets.SLACK_WEBHOOK_URL != '' }}
+        if: env.SLACK_WEBHOOK_URL != ''
         uses: slackapi/slack-github-action@v1.26.0
         with:
           payload: |
@@ -224,5 +226,4 @@ jobs:
               ]
             }
         env:
-          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
           SLACK_WEBHOOK_TYPE: INCOMING_WEBHOOK
